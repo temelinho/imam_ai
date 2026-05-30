@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter pub *)",
+      "Bash(flutter analyze *)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(pip *)",
+      "PowerShell(flutter *)",
+      "PowerShell(psql *)"
+    ]
+  }
+}

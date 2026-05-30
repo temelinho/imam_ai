@@ -1,0 +1,21 @@
+İmam AI - Türkçe dini soru-cevap uygulaması yapıyorum.
+
+Backend: Python FastAPI
+Mobile: Flutter  
+DB: PostgreSQL
+AI: Gemini 2.0 Flash
+
+Önce backend yap:
+- POST /api/chat endpoint
+- Gemini 2.0 Flash entegrasyonu  
+- PostgreSQL sohbet geçmişi
+- .env'den GEMINI_API_KEY oku
+- requirements.txt ve Procfile yaz
+
+Sonra Flutter chat UI yap:
+- Sohbet ekranı (WhatsApp tarzı)
+- Mesaj geçmişi
+- Yeşil tema (#0F6E56)
+- Altta uyarı metni: "Önemli konularda müftüye danışın"
+
+Sistem promptu backend'de kullan. Sistem promptu şu dosyada: imam_ai_system_prompt.md - onu oku ve backend kodunda kullan.
