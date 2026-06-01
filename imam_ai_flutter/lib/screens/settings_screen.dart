@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme/app_colors.dart';
 import '../services/diyanet_service.dart';
+import '../services/locale_service.dart';
+import '../l10n/l10n_scope.dart';
+import '../l10n/app_localizations.dart';
 import 'premium_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -31,12 +34,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _jumuaReminder = true;
   bool _isPro = false;
 
-  static const Map<String, String> _mezhepDescriptions = {
-    'Hanefi': 'İmam Ebu Hanife · Türkiye, Orta Asya ve Güney Asya\'da yaygın',
-    'Şafi': 'İmam Şafi · Doğu Anadolu, Mısır ve Güneydoğu Asya\'da yaygın',
-    'Maliki': 'İmam Malik · Kuzey ve Batı Afrika\'da yaygın',
-    'Hanbeli': 'İmam Ahmed bin Hanbel · Arap Yarımadası\'nda yaygın',
-  };
 
   static const Map<String, IconData> _mezhepIcons = {
     'Hanefi': Icons.mosque_rounded,
@@ -45,11 +42,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     'Hanbeli': Icons.menu_book_rounded,
   };
 
-  static const Map<String, String> _reciterSubtitles = {
-    'Mishary Rashid': 'Kuveytli ünlü hafız',
-    'Abdul Rahman': 'Klasik tilâvet stili',
-    'Maher Al Muaiqly': 'Mekke imamı',
-  };
 
   static const List<String> _ezanSesleri = [
     'Türkiye Diyanet',
@@ -122,17 +114,101 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _updateEzanSelection(String ezan) {
+    final l10n = L10nScope.of(context);
     if (ezan == 'Türkiye Diyanet' || _isPro) {
       _updateEzan(ezan);
     } else {
-      _showPremiumDialog(
-        'Sesli Ezan Seçenekleri 🕌',
-        'Mekke, Medine, Mısır gibi farklı ezan seslerini seçmek ve vakitlerde tam sesli ezan bildirimleri almak Pro sürüme özeldir. Ezan seslerini huşuyla dinlemek için Pro\'ya geçin!',
-      );
+      _showPremiumDialog(l10n.premiumEzanTitle, l10n.premiumEzanBody);
     }
   }
 
+  void _showLanguagePicker(LocaleService localeService, AppLocalizations l10n) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final bottomInset = MediaQuery.paddingOf(sheetContext).bottom;
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(bottom: bottomInset > 0 ? bottomInset + 8 : 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(l10n.selectLanguage, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              const Divider(height: 0.5),
+              _languageOption(
+                icon: Icons.language_rounded,
+                label: l10n.languageTurkish,
+                selected: localeService.languageCode == 'tr',
+                onTap: () async {
+                  await localeService.setLanguage('tr');
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                },
+              ),
+              const Divider(height: 0.5, indent: 56),
+              _languageOption(
+                icon: Icons.translate_rounded,
+                label: l10n.languageArabic,
+                subtitle: 'العربية',
+                selected: localeService.languageCode == 'ar',
+                onTap: () async {
+                  await localeService.setLanguage('ar');
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _languageOption({
+    required IconData icon,
+    required String label,
+    String? subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      leading: Icon(icon, color: AppColors.primary, size: 26),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+          color: selected ? AppColors.primaryDark : const Color(0xFF1A1A1A),
+        ),
+      ),
+      subtitle: subtitle != null
+          ? Text(subtitle, style: const TextStyle(fontSize: 14, color: Colors.grey))
+          : null,
+      trailing: selected
+          ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 26)
+          : const Icon(Icons.circle_outlined, color: Color(0xFFD1D5DB), size: 26),
+      onTap: onTap,
+    );
+  }
+
   void _showPremiumDialog(String featureTitle, String description) {
+    final l10n = L10nScope.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -156,7 +232,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Daha Sonra', style: TextStyle(color: Colors.grey, fontSize: 13.5)),
+            child: Text(l10n.later, style: const TextStyle(color: Colors.grey, fontSize: 13.5)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -169,14 +245,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Pro\'ya Geç 👑', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
+            child: Text(l10n.goPro, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProPromoCard() {
+  Widget _buildProPromoCard(AppLocalizations l10n) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -204,13 +280,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'İmam AI Pro\'ya Yükselt 👑',
-                  style: TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.bold),
+                Text(
+                  l10n.proUpgrade,
+                  style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Sesli Ezanlar, Sınırsız Yapay Zeka ve Sıfır Reklam!',
+                  l10n.proUpgradeSubtitle,
                   style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 11.5),
                 ),
               ],
@@ -225,7 +301,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('İncele', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+            child: Text(l10n.explore, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -234,9 +310,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10nScope.of(context);
+    final localeService = L10nScope.localeServiceOf(context);
     final mezheps = ['Hanefi', 'Şafi', 'Maliki', 'Hanbeli'];
     final reciters = ['Mishary Rashid', 'Abdul Rahman', 'Maher Al Muaiqly'];
     final cities = DiyanetService.majorCities.keys.toList()..sort();
+    final currentLangLabel = localeService.isArabic ? l10n.languageArabic : l10n.languageTurkish;
 
     return Container(
       color: const Color(0xFFF2F4F3),
@@ -272,9 +351,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('İmam AI', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+                        Text(l10n.appName, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
                         const SizedBox(height: 2),
-                        Text('Sürüm 1.0.0 · Ehl-i Sünnet', style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12.5)),
+                        Text(l10n.appVersionLine, style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12.5)),
                         const SizedBox(height: 8),
                         Row(
                           children: [
@@ -286,7 +365,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 children: [
                                   const Icon(Icons.auto_awesome, color: Colors.amber, size: 13),
                                   const SizedBox(width: 5),
-                                  Text('Gemini 2.0 Flash', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11.5, fontWeight: FontWeight.w600)),
+                                  Text(l10n.geminiBadge, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11.5, fontWeight: FontWeight.w600)),
                                 ],
                               ),
                             ),
@@ -298,12 +377,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   color: Colors.amber,
                                   borderRadius: BorderRadius.all(Radius.circular(20)),
                                 ),
-                                child: const Row(
+                                child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 13),
-                                    SizedBox(width: 5),
-                                    Text('PRO 👑', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w800)),
+                                    const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 13),
+                                    const SizedBox(width: 5),
+                                    Text(l10n.pro, style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w800)),
                                   ],
                                 ),
                               ),
@@ -318,24 +397,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             if (!_isPro) ...[
-              _buildProPromoCard(),
+              _buildProPromoCard(l10n),
             ],
 
-            // ─── Konum Ayarları ─────────────────────────────────────────
-            _sectionTitle('📍  Konum', 'Namaz vakitleri bu şehre göre hesaplanır'),
+            _sectionTitle('🌐  ${l10n.settingsLanguage}', l10n.settingsLanguageSubtitle),
+            _settingsCard([
+              _buildDropdownTile(
+                icon: Icons.language_rounded,
+                iconColor: const Color(0xFF0EA5E9),
+                iconBg: const Color(0xFFE0F2FE),
+                title: l10n.settingsLanguage,
+                value: currentLangLabel,
+                onTap: () => _showLanguagePicker(localeService, l10n),
+              ),
+            ]),
+
+            _sectionTitle('📍  ${l10n.sectionLocation}', l10n.sectionLocationSubtitle),
             _settingsCard([
               _buildDropdownTile(
                 icon: Icons.location_city_rounded,
                 iconColor: const Color(0xFF3B82F6),
                 iconBg: const Color(0xFFEFF6FF),
-                title: 'Şehir',
+                title: l10n.city,
                 value: _selectedCity,
                 onTap: () => _showCityPicker(cities),
               ),
             ]),
 
-            // ─── Mezhep Seçimi ─────────────────────────────────────────
-            _sectionTitle('🕌  Mezhep Seçimi', 'Fıkhi hesaplamalar bu mezhepe göre yapılır'),
+            _sectionTitle('🕌  ${l10n.sectionMezhep}', l10n.sectionMezhepSubtitle),
             _settingsCard(
               mezheps.asMap().entries.map((entry) {
                 final mezhep = entry.value;
@@ -345,8 +434,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: _mezhepIcons[mezhep] ?? Icons.mosque_rounded,
                   iconColor: isSelected ? Colors.white : Colors.grey,
                   iconBg: isSelected ? AppColors.primary : const Color(0xFFF3F4F6),
-                  title: mezhep,
-                  subtitle: _mezhepDescriptions[mezhep] ?? '',
+                  title: l10n.mezhepName(mezhep),
+                  subtitle: l10n.mezhepDescription(mezhep),
                   isSelected: isSelected,
                   isLast: isLast,
                   onTap: () => _updateMezhep(mezhep),
@@ -354,8 +443,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }).toList(),
             ),
 
-            // ─── Ezan Sesi ─────────────────────────────────────────────
-            _sectionTitle('🔊  Ezan Sesi', 'Bildirim geldiğinde çalınacak ezan'),
+            _sectionTitle('🔊  ${l10n.sectionEzan}', l10n.sectionEzanSubtitle),
             _settingsCard(
               _ezanSesleri.asMap().entries.map((entry) {
                 final ezan = entry.value;
@@ -367,8 +455,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.volume_up_rounded,
                   iconColor: isSelected ? Colors.white : Colors.grey,
                   iconBg: isSelected ? const Color(0xFF8B5CF6) : const Color(0xFFF3F4F6),
-                  title: ezan,
-                  subtitle: isPremiumSound && !_isPro ? 'Pro sürüm 👑' : '',
+                  title: l10n.ezanName(ezan),
+                  subtitle: isPremiumSound && !_isPro ? l10n.proEdition : '',
                   isSelected: isSelected,
                   isLast: isLast,
                   onTap: () => _updateEzanSelection(ezan),
@@ -376,8 +464,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }).toList(),
             ),
 
-            // ─── Kuran Kârisi ───────────────────────────────────────────
-            _sectionTitle('🎙️  Kuran Kârisi', 'Sesli okuma için tercih ettiğiniz kâri'),
+            _sectionTitle('🎙️  ${l10n.sectionReciter}', l10n.sectionReciterSubtitle),
             _settingsCard(
               reciters.asMap().entries.map((entry) {
                 final reciter = entry.value;
@@ -388,7 +475,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   iconColor: isSelected ? Colors.white : Colors.grey,
                   iconBg: isSelected ? const Color(0xFFEF4444) : const Color(0xFFF3F4F6),
                   title: reciter,
-                  subtitle: _reciterSubtitles[reciter] ?? '',
+                  subtitle: l10n.reciterSubtitle(reciter),
                   isSelected: isSelected,
                   isLast: isLast,
                   onTap: () => _updateReciter(reciter),
@@ -396,15 +483,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }).toList(),
             ),
 
-            // ─── Bildirim Ayarları ──────────────────────────────────────
-            _sectionTitle('🔔  Bildirimler', 'Hangi bildirimler gönderilsin?'),
+            _sectionTitle('🔔  ${l10n.sectionNotifications}', l10n.sectionNotificationsSubtitle),
             _settingsCard([
               _buildSwitchTile(
                 icon: Icons.notifications_active_rounded,
                 iconColor: const Color(0xFF00B27A),
                 iconBg: const Color(0xFFECFDF5),
-                title: 'Tüm bildirimler',
-                subtitle: 'Ana bildirim anahtarı',
+                title: l10n.notifAll,
+                subtitle: l10n.notifAllSubtitle,
                 value: _globalNotif,
                 isLast: false,
                 onChanged: (v) {
@@ -416,8 +502,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.wb_sunny_rounded,
                 iconColor: const Color(0xFFF59E0B),
                 iconBg: const Color(0xFFFFFBEB),
-                title: 'Namaz vakti hatırlatıcı',
-                subtitle: 'Her namaz vaktinde bildirim',
+                title: l10n.notifPrayer,
+                subtitle: l10n.notifPrayerSubtitle,
                 value: _prayerReminder && _globalNotif,
                 isLast: false,
                 onChanged: _globalNotif
@@ -431,8 +517,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.menu_book_rounded,
                 iconColor: const Color(0xFF3B82F6),
                 iconBg: const Color(0xFFEFF6FF),
-                title: 'Günlük ayet & hadis',
-                subtitle: 'Her sabah ilham verici içerik',
+                title: l10n.notifDaily,
+                subtitle: l10n.notifDailySubtitle,
                 value: _dailyVerse && _globalNotif,
                 isLast: false,
                 onChanged: _globalNotif
@@ -446,8 +532,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.mosque_rounded,
                 iconColor: const Color(0xFF8B5CF6),
                 iconBg: const Color(0xFFF5F3FF),
-                title: 'Cuma namazı hatırlatıcısı',
-                subtitle: 'Her Cuma günü özel bildirim',
+                title: l10n.notifFriday,
+                subtitle: l10n.notifFridaySubtitle,
                 value: _jumuaReminder && _globalNotif,
                 isLast: true,
                 onChanged: _globalNotif
@@ -459,14 +545,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ]),
 
-            // ─── Uygulama Hakkında ──────────────────────────────────────
-            _sectionTitle('ℹ️  Hakkında', ''),
+            _sectionTitle('ℹ️  ${l10n.sectionAbout}', ''),
             _settingsCard([
-              _buildInfoTile(icon: Icons.info_outline_rounded, iconColor: const Color(0xFF6B7280), title: 'Sürüm', trailing: 'v1.0.0', isLast: false),
-              _buildInfoTile(icon: Icons.gavel_rounded, iconColor: const Color(0xFF6B7280), title: 'Kullanım Koşulları', trailing: '', isLast: false, showArrow: true),
-              _buildInfoTile(icon: Icons.privacy_tip_outlined, iconColor: const Color(0xFF6B7280), title: 'Gizlilik Politikası', trailing: '', isLast: false, showArrow: true),
-              _buildInfoTile(icon: Icons.star_rounded, iconColor: const Color(0xFFF59E0B), title: 'Uygulamayı Oyla ⭐', trailing: '', isLast: false, showArrow: true),
-              _buildInfoTile(icon: Icons.mail_outline_rounded, iconColor: const Color(0xFF3B82F6), title: 'Geri Bildirim Gönder', trailing: '', isLast: true, showArrow: true),
+              _buildInfoTile(icon: Icons.info_outline_rounded, iconColor: const Color(0xFF6B7280), title: l10n.version, trailing: 'v1.0.0', isLast: false),
+              _buildInfoTile(icon: Icons.gavel_rounded, iconColor: const Color(0xFF6B7280), title: l10n.terms, trailing: '', isLast: false, showArrow: true),
+              _buildInfoTile(icon: Icons.privacy_tip_outlined, iconColor: const Color(0xFF6B7280), title: l10n.privacy, trailing: '', isLast: false, showArrow: true),
+              _buildInfoTile(icon: Icons.star_rounded, iconColor: const Color(0xFFF59E0B), title: l10n.rateApp, trailing: '', isLast: false, showArrow: true),
+              _buildInfoTile(icon: Icons.mail_outline_rounded, iconColor: const Color(0xFF3B82F6), title: l10n.feedback, trailing: '', isLast: true, showArrow: true),
             ]),
 
             // ─── Feragatname ────────────────────────────────────────────
@@ -478,15 +563,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFFDE68A), width: 1),
               ),
-              child: const Row(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.tips_and_updates_rounded, color: Color(0xFFD97706), size: 16),
-                  SizedBox(width: 8),
+                  const Icon(Icons.tips_and_updates_rounded, color: Color(0xFFD97706), size: 16),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'İmam AI referans amaçlıdır. Önemli dini konularda yetkili bir din görevlisine danışınız.',
-                      style: TextStyle(fontSize: 11.5, color: Color(0xFF92400E), height: 1.4),
+                      l10n.disclaimer,
+                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF92400E), height: 1.4),
                     ),
                   ),
                 ],
@@ -703,23 +788,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showCityPicker(List<String> cities) {
+    final l10n = L10nScope.of(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
+        final bottomInset = MediaQuery.paddingOf(context).bottom;
         return Container(
           height: MediaQuery.of(context).size.height * 0.65,
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
+          padding: EdgeInsets.only(bottom: bottomInset),
           child: Column(
             children: [
               const SizedBox(height: 12),
               Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 16),
-              const Text('Şehir Seçin', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+              Text(l10n.selectCity, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
               const Divider(height: 0.5),
               Expanded(

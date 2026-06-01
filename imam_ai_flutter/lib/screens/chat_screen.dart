@@ -5,6 +5,7 @@ import 'home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_colors.dart';
+import '../l10n/l10n_scope.dart';
 import '../models/message.dart';
 import '../services/api_service.dart';
 
@@ -121,7 +122,7 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
     } catch (e) {
       setState(() {
         _messages.add(Message(
-          content: 'Bağlantı hatası. Lütfen sunucunun açık olduğundan emin olun ve tekrar deneyin.',
+          content: L10nScope.of(context).chatError,
           isUser: false,
           timestamp: DateTime.now(),
         ));
@@ -184,6 +185,7 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
   }
 
   Widget _buildEmptyState() {
+    final l10n = L10nScope.of(context);
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Column(
@@ -221,7 +223,7 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
                           const Icon(Icons.auto_awesome, color: Colors.amber, size: 16),
                           const SizedBox(width: 6),
                           Text(
-                            'İmam AI Asistan',
+                            l10n.chatAssistant,
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.85),
                               fontSize: 12,
@@ -231,9 +233,9 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Size nasıl\nyardımcı olabilirim?',
-                        style: TextStyle(
+                      Text(
+                        l10n.chatWelcome,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
@@ -242,7 +244,7 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Dini sorularınızı, ibadet ve fıkıh\nkonularını danışabilirsiniz.',
+                        l10n.chatWelcomeSubtitle,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.75),
                           fontSize: 13,
@@ -257,48 +259,46 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
           ),
 
           // ─── Kategori başlığı ───────────────────────────────────────
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 16, 10),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 16, 10),
             child: Text(
-              'Popüler Sorular',
-              style: TextStyle(
+              l10n.popularQuestions,
+              style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF1A1A1A),
               ),
             ),
           ),
-
-          // ─── Soru kartları ──────────────────────────────────────────
           _buildSuggestionCard(
             icon: Icons.opacity_rounded,
             iconColor: const Color(0xFF3B82F6),
             iconBg: const Color(0xFFEFF6FF),
-            text: 'Abdestin farzları nelerdir?',
+            text: l10n.qAblution,
           ),
           _buildSuggestionCard(
             icon: Icons.nightlight_round,
             iconColor: const Color(0xFF8B5CF6),
             iconBg: const Color(0xFFF5F3FF),
-            text: 'Orucu bozan şeyler nelerdir?',
+            text: l10n.qFasting,
           ),
           _buildSuggestionCard(
             icon: Icons.mosque_rounded,
             iconColor: const Color(0xFF00B27A),
             iconBg: const Color(0xFFECFDF5),
-            text: 'Namazda ne kadar sure okunmalı?',
+            text: l10n.qPrayerSurah,
           ),
           _buildSuggestionCard(
             icon: Icons.volunteer_activism_rounded,
             iconColor: const Color(0xFFF59E0B),
             iconBg: const Color(0xFFFFFBEB),
-            text: 'Zekat kimlere verilir?',
+            text: l10n.qZakat,
           ),
           _buildSuggestionCard(
             icon: Icons.menu_book_rounded,
             iconColor: const Color(0xFFEF4444),
             iconBg: const Color(0xFFFEF2F2),
-            text: 'Kur\'an-ı Kerim nasıl doğru okunur?',
+            text: l10n.qQuranRead,
           ),
           const SizedBox(height: 16),
         ],
@@ -407,9 +407,9 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (!isUser) ...[
-              const Text(
-                'İmam AI',
-                style: TextStyle(
+              Text(
+                L10nScope.of(context).appName,
+                style: const TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
@@ -502,7 +502,7 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
             ),
             const SizedBox(width: 8),
             Text(
-              'İmam AI yazıyor...',
+              L10nScope.of(context).chatTyping,
               style: TextStyle(
                 fontSize: 11.5,
                 color: Colors.grey.shade600,
@@ -515,6 +515,7 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
   }
 
   Widget _buildWarningBanner() {
+    final l10n = L10nScope.of(context);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
@@ -524,14 +525,14 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFFDE68A), width: 1),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.tips_and_updates_rounded, color: Color(0xFFD97706), size: 17),
-          SizedBox(width: 8),
+          const Icon(Icons.tips_and_updates_rounded, color: Color(0xFFD97706), size: 17),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Önemli dini konularda bir müftüye danışmanız tavsiye edilir.',
-              style: TextStyle(
+              l10n.chatDisclaimer,
+              style: const TextStyle(
                 fontSize: 11.5,
                 color: Color(0xFF92400E),
                 fontWeight: FontWeight.w600,
@@ -544,6 +545,7 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
   }
 
   Widget _buildInputArea() {
+    final l10n = L10nScope.of(context);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -575,7 +577,7 @@ class _ChatScreenState extends State<ChatScreen> implements ChatScreenStateExt {
                   minLines: 1,
                   style: const TextStyle(fontSize: 14.5, color: Color(0xFF1A1A1A)),
                   decoration: InputDecoration(
-                    hintText: 'Bir soru sorun...',
+                    hintText: l10n.chatHint,
                     hintStyle: TextStyle(fontSize: 14, color: Colors.grey.shade400),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

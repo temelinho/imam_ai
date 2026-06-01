@@ -2,9 +2,13 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import '../core/theme/app_colors.dart';
+import '../core/constants/city_coordinates.dart';
+import '../location/location_scope.dart';
+import '../l10n/l10n_scope.dart';
+import '../l10n/app_localizations.dart';
+import '../services/location_service.dart';
 
 class QiblaScreen extends StatefulWidget {
   final String selectedCity;
@@ -19,32 +23,16 @@ class QiblaScreen extends StatefulWidget {
 }
 
 class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStateMixin {
-  double _qiblaAngle = 213.0; // Fallback for Malatya
-  double _distanceToMecca = 1847.0; // Fallback for Malatya
-  String _sourceText = 'Şehir konumuna göre hesaplandı';
-  bool _isLoading = false;
-  
+  double _qiblaAngle = 213.0;
+  double _distanceToMecca = 1847.0;
+
   double? _deviceHeading;
   StreamSubscription<CompassEvent>? _compassSubscription;
   bool _isAligned = false;
+  LocationService? _locationService;
 
   late AnimationController _animationController;
   late Animation<double> _animation;
-
-  // City Coordinates Map
-  static const Map<String, List<double>> _cityCoords = {
-    'Malatya': [38.3552, 38.3093],
-    'İstanbul': [41.0082, 28.9784],
-    'Ankara': [39.9334, 32.8597],
-    'İzmir': [38.4192, 27.1287],
-    'Bursa': [40.1826, 29.0667],
-    'Antalya': [36.8969, 30.7133],
-    'Adana': [36.9914, 35.3289],
-    'Konya': [37.8714, 32.4847],
-    'Trabzon': [41.0027, 39.7168],
-    'Diyarbakır': [37.9144, 40.2306],
-    'Gaziantep': [37.0662, 37.3833],
-  };
 
   @override
   void initState() {
@@ -56,10 +44,28 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
     _animation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
     );
-
-    _calculateQiblaFromCity();
-    _checkGPSLocation();
     _initCompass();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final loc = LocationScope.of(context);
+    if (_locationService != loc) {
+      _locationService?.removeListener(_onLocationChanged);
+      _locationService = loc;
+      _locationService!.addListener(_onLocationChanged);
+      _recomputeFromLocation();
+    }
+  }
+
+  void _onLocationChanged() => _recomputeFromLocation();
+
+  void _recomputeFromLocation() {
+    final loc = _locationService;
+    if (loc == null) return;
+    final coords = loc.coordsOrCityFallback(widget.selectedCity);
+    _computeValues(coords[0], coords[1]);
   }
 
   void _initCompass() {
@@ -68,141 +74,68 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
         if (!mounted) return;
         final heading = event.heading;
         if (heading != null) {
-          // Calculate alignment with Qibla
           double diff = (_qiblaAngle - heading).abs() % 360;
-          if (diff > 180) {
-            diff = 360 - diff;
-          }
+          if (diff > 180) diff = 360 - diff;
           final isAligned = diff < 5.0;
-
           if (isAligned && !_isAligned) {
             HapticFeedback.lightImpact();
           }
-
           setState(() {
             _deviceHeading = heading;
             _isAligned = isAligned;
           });
         }
       });
-    } catch (e) {
-      // Compass not supported
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant QiblaScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedCity != widget.selectedCity) {
-      _calculateQiblaFromCity();
-    }
-  }
-
-  void _calculateQiblaFromCity() {
-    final coords = _cityCoords[widget.selectedCity] ?? [38.3552, 38.3093];
-    _computeValues(coords[0], coords[1]);
-    setState(() {
-      _sourceText = '${widget.selectedCity} konumuna göre hesaplandı';
-    });
-  }
-
-  Future<void> _checkGPSLocation() async {
-    setState(() => _isLoading = true);
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          setState(() => _isLoading = false);
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.low,
-        timeLimit: const Duration(seconds: 5),
-      );
-
-      _computeValues(position.latitude, position.longitude);
-      setState(() {
-        _sourceText = 'GPS ile hesaplandı';
-      });
-    } catch (e) {
-      // Keep city fallbacks on exception
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+    } catch (_) {}
   }
 
   void _computeValues(double lat, double lon) {
-    // Kaaba coordinates
     const double kaabaLat = 21.4225;
     const double kaabaLon = 39.8262;
 
-    // Calculate Qibla angle (bearing)
-    double latRad = lat * math.pi / 180.0;
-    double lonRad = lon * math.pi / 180.0;
-    double kaabaLatRad = kaabaLat * math.pi / 180.0;
-    double kaabaLonRad = kaabaLon * math.pi / 180.0;
+    final latRad = lat * math.pi / 180.0;
+    final lonRad = lon * math.pi / 180.0;
+    final kaabaLatRad = kaabaLat * math.pi / 180.0;
+    final kaabaLonRad = kaabaLon * math.pi / 180.0;
+    final dLon = kaabaLonRad - lonRad;
 
-    double dLon = kaabaLonRad - lonRad;
-
-    double y = math.sin(dLon);
-    double x = math.cos(latRad) * math.tan(kaabaLatRad) -
-        math.sin(latRad) * math.cos(dLon);
-
+    final y = math.sin(dLon);
+    final x = math.cos(latRad) * math.tan(kaabaLatRad) - math.sin(latRad) * math.cos(dLon);
     double qiblaAngle = math.atan2(y, x) * 180.0 / math.pi;
     qiblaAngle = (qiblaAngle + 360.0) % 360.0;
 
-    // Calculate distance (Haversine formula)
-    const double earthRadius = 6371.0;
-    double dLat = (kaabaLat - lat) * math.pi / 180.0;
-    double dLonDiff = (kaabaLon - lon) * math.pi / 180.0;
-
-    double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(latRad) *
-            math.cos(kaabaLatRad) *
-            math.sin(dLonDiff / 2) *
-            math.sin(dLonDiff / 2);
-
-    double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    double distance = earthRadius * c;
+    final distance = CityCoordinates.haversineKm(lat, lon, kaabaLat, kaabaLon);
 
     setState(() {
       _qiblaAngle = qiblaAngle;
       _distanceToMecca = distance;
     });
-
     _animationController.reset();
     _animationController.forward();
   }
 
-  String _getDirectionName(double angle) {
-    if (angle >= 337.5 || angle < 22.5) return 'Kuzey';
-    if (angle >= 22.5 && angle < 67.5) return 'Kuzeydoğu';
-    if (angle >= 67.5 && angle < 112.5) return 'Doğu';
-    if (angle >= 112.5 && angle < 157.5) return 'Güneydoğu';
-    if (angle >= 157.5 && angle < 202.5) return 'Güney';
-    if (angle >= 202.5 && angle < 247.5) return 'Güneybatı';
-    if (angle >= 247.5 && angle < 292.5) return 'Batı';
-    return 'Kuzeybatı';
+  String _getDirectionName(double angle, AppLocalizations l10n) {
+    if (angle >= 337.5 || angle < 22.5) return l10n.directionName('Kuzey');
+    if (angle >= 22.5 && angle < 67.5) return l10n.directionName('Kuzeydoğu');
+    if (angle >= 67.5 && angle < 112.5) return l10n.directionName('Doğu');
+    if (angle >= 112.5 && angle < 157.5) return l10n.directionName('Güneydoğu');
+    if (angle >= 157.5 && angle < 202.5) return l10n.directionName('Güney');
+    if (angle >= 202.5 && angle < 247.5) return l10n.directionName('Güneybatı');
+    if (angle >= 247.5 && angle < 292.5) return l10n.directionName('Batı');
+    return l10n.directionName('Kuzeybatı');
+  }
+
+  String _sourceLabel(AppLocalizations l10n, LocationService loc) {
+    if (loc.fromGps) return l10n.qiblaByGps;
+    if (loc.nearestCity != null) {
+      return l10n.qiblaByCityNamed(loc.nearestCity!);
+    }
+    return l10n.qiblaByCityNamed(widget.selectedCity);
   }
 
   @override
   void dispose() {
+    _locationService?.removeListener(_onLocationChanged);
     _compassSubscription?.cancel();
     _animationController.dispose();
     super.dispose();
@@ -210,64 +143,75 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10nScope.of(context);
+    final loc = LocationScope.of(context);
+    final displayCity = loc.fromGps ? (loc.nearestCity ?? widget.selectedCity) : widget.selectedCity;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const SizedBox(height: 16),
-          // GPS or City Status Label
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                _sourceText.contains('GPS') ? Icons.gps_fixed : Icons.location_city,
+                loc.fromGps ? Icons.gps_fixed : Icons.location_city,
                 size: 11,
                 color: AppColors.primary,
               ),
               const SizedBox(width: 4),
-              Text(
-                _sourceText,
-                style: const TextStyle(
-                  fontSize: 13.0,
-                  color: AppColors.primaryDark,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  _sourceLabel(l10n, loc),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13.0,
+                    color: AppColors.primaryDark,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-              if (_isLoading) ...[
+              if (loc.loading) ...[
                 const SizedBox(width: 8),
                 const SizedBox(
                   width: 10,
                   height: 10,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: AppColors.primary,
-                  ),
+                  child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.primary),
                 ),
               ],
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () => loc.refresh(),
+                child: const Icon(Icons.refresh, size: 18, color: Colors.grey),
+              ),
             ],
           ),
+          if (loc.permissionDenied || loc.serviceDisabled) ...[
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () => loc.refresh(),
+              icon: const Icon(Icons.location_disabled, size: 16),
+              label: Text(l10n.enableLocation),
+            ),
+          ],
           const Spacer(),
-          // Compass widget matching mockup (88x88 circle with K/G/D/B)
           Builder(
             builder: (context) {
-              final double dialRotation = _deviceHeading != null
-                  ? -_deviceHeading! * math.pi / 180.0
-                  : 0.0;
-              final double arrowRotation = _deviceHeading != null
+              final dialRotation = _deviceHeading != null ? -_deviceHeading! * math.pi / 180.0 : 0.0;
+              final arrowRotation = _deviceHeading != null
                   ? (_qiblaAngle - _deviceHeading!) * math.pi / 180.0
                   : (_qiblaAngle * _animation.value) * math.pi / 180.0;
 
               return Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Rotating Outer Dial (Container + Labels + Kaaba Marker)
                   Transform.rotate(
                     angle: dialRotation,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Outer Dial Container
                         Container(
                           width: 180,
                           height: 180,
@@ -288,80 +232,46 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
                             ],
                           ),
                         ),
-                        // Direction Text Labels (Absolute positioned on 180x180 circle)
                         const SizedBox(
                           width: 180,
                           height: 180,
                           child: Stack(
                             children: [
-                              // North (K)
                               Positioned(
                                 top: 8,
                                 left: 0,
                                 right: 0,
                                 child: Center(
-                                  child: Text(
-                                    'K',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w900,
-                                      color: AppColors.primaryDark,
-                                    ),
-                                  ),
+                                  child: Text('K', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
                                 ),
                               ),
-                              // South (G)
                               Positioned(
                                 bottom: 8,
                                 left: 0,
                                 right: 0,
                                 child: Center(
-                                  child: Text(
-                                    'G',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w900,
-                                      color: AppColors.primaryDark,
-                                    ),
-                                  ),
+                                  child: Text('G', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
                                 ),
                               ),
-                              // East (D)
                               Positioned(
                                 right: 8,
                                 top: 0,
                                 bottom: 0,
                                 child: Center(
-                                  child: Text(
-                                    'D',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w900,
-                                      color: AppColors.primaryDark,
-                                    ),
-                                  ),
+                                  child: Text('D', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
                                 ),
                               ),
-                              // West (B)
                               Positioned(
                                 left: 8,
                                 top: 0,
                                 bottom: 0,
                                 child: Center(
-                                  child: Text(
-                                    'B',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w900,
-                                      color: AppColors.primaryDark,
-                                    ),
-                                  ),
+                                  child: Text('B', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        // Kaaba Marker at Qibla angle on the Dial
                         SizedBox(
                           width: 180,
                           height: 180,
@@ -371,10 +281,7 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
                               alignment: Alignment.topCenter,
                               child: Padding(
                                 padding: EdgeInsets.only(top: 14),
-                                child: Text(
-                                  '🕋',
-                                  style: TextStyle(fontSize: 22),
-                                ),
+                                child: Text('🕋', style: TextStyle(fontSize: 22)),
                               ),
                             ),
                           ),
@@ -382,7 +289,6 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
                       ],
                     ),
                   ),
-                  // Rotating Arrow (Custom dynamic compass needle pointing straight North by default)
                   Transform.rotate(
                     angle: arrowRotation,
                     child: SizedBox(
@@ -391,7 +297,6 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // North pointing side (Mecca / Qibla pointer) - pointing UP
                           Positioned(
                             top: 10,
                             bottom: 70,
@@ -412,7 +317,6 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
                               ),
                             ),
                           ),
-                          // Arrow head tip
                           Positioned(
                             top: 0,
                             child: Icon(
@@ -421,16 +325,11 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
                               color: _isAligned ? Colors.amber : AppColors.primary,
                             ),
                           ),
-                          // South pointing side (opposite / tail) - pointing DOWN
                           Positioned(
                             top: 70,
                             bottom: 25,
-                            child: Container(
-                              width: 4,
-                              color: Colors.grey.withOpacity(0.4),
-                            ),
+                            child: Container(width: 4, color: Colors.grey.withOpacity(0.4)),
                           ),
-                          // Center pivot circle
                           Container(
                             width: 16,
                             height: 16,
@@ -438,12 +337,6 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
                               color: _isAligned ? Colors.amber : AppColors.primary,
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                ),
-                              ],
                             ),
                           ),
                         ],
@@ -455,22 +348,14 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
             },
           ),
           const SizedBox(height: 24),
-          // Degree Text
           Text(
-            _deviceHeading != null
-                ? '${_deviceHeading!.toStringAsFixed(0)}°'
-                : '${_qiblaAngle.toStringAsFixed(0)}°',
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
-            ),
+            _deviceHeading != null ? '${_deviceHeading!.toStringAsFixed(0)}°' : '${_qiblaAngle.toStringAsFixed(0)}°',
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primary),
           ),
           const SizedBox(height: 2),
-          // Description Text
           if (_deviceHeading != null) ...[
             Text(
-              _isAligned ? '🕌 Kâbe\'ye Doğru Hizalandınız!' : 'Telefonu çevirerek yeşil oku takip edin',
+              _isAligned ? l10n.qiblaAligned : l10n.qiblaFollow,
               style: TextStyle(
                 fontSize: 14.0,
                 fontWeight: FontWeight.bold,
@@ -479,16 +364,11 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
             ),
           ] else ...[
             Text(
-              '${_getDirectionName(_qiblaAngle)} · Kâbe yönü',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primaryDark,
-              ),
+              l10n.qiblaDirection(_getDirectionName(_qiblaAngle, l10n)),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
             ),
           ],
           const Spacer(),
-          // Distance Info Box at the bottom
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -498,24 +378,15 @@ class _QiblaScreenState extends State<QiblaScreen> with SingleTickerProviderStat
               border: Border.all(color: AppColors.cardBorder, width: 1),
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  '${widget.selectedCity} ➔ Mekke mesafesi',
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    color: AppColors.primaryDark,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  l10n.qiblaDistance(displayCity),
+                  style: const TextStyle(fontSize: 13.5, color: AppColors.primaryDark, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${_distanceToMecca.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')} km',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                  ),
+                  '${_distanceToMecca.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} km',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primary),
                 ),
               ],
             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
+import '../l10n/l10n_scope.dart';
 
 class OrucScreen extends StatelessWidget {
   final Function(String) onNavigateToChat;
@@ -11,35 +12,35 @@ class OrucScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10nScope.of(context);
+
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
         const SizedBox(height: 8),
         _buildInfoCard(
           icon: Icons.access_time,
-          title: 'Sahur bitiş vakti',
-          description: 'Hanefi: İmsak - Şafi: Fecr-i sâdıkta kesilir',
-          badgeText: 'Hanefi - Şafi',
+          title: l10n.suhurTitle,
+          description: l10n.suhurDesc,
+          badgeText: l10n.hanefiShafi,
           onTap: () {},
         ),
         const SizedBox(height: 10),
         _buildInfoCard(
           icon: Icons.wb_twilight_outlined,
-          title: 'İftar vakti',
-          description: 'Tüm mezhepler: Akşam ezanıyla birlikte',
-          badgeText: 'Tüm mezhepler',
+          title: l10n.iftarTitle,
+          description: l10n.iftarDesc,
+          badgeText: l10n.allMezheps,
           onTap: () {},
         ),
         const SizedBox(height: 10),
         _buildInfoCard(
           icon: Icons.error_outline,
-          title: 'Orucu bozan şeyler',
-          description: 'Yemek, içmek, cinsel birliktelik ve daha fazlası',
-          badgeText: 'Detay için sohbet',
+          title: l10n.fastingBreakers,
+          description: l10n.fastingBreakersDesc,
+          badgeText: l10n.chatForDetails,
           isChatBadge: true,
-          onTap: () {
-            onNavigateToChat('Orucu bozan şeyler nelerdir? Detaylı açıklar mısın?');
-          },
+          onTap: () => onNavigateToChat(l10n.qFasting),
         ),
       ],
     );
@@ -70,21 +71,15 @@ class OrucScreen extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left Icon
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: AppColors.surface2,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: 24,
-            ),
+            child: Icon(icon, color: AppColors.primary, size: 24),
           ),
           const SizedBox(width: 12),
-          // Right details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,14 +95,9 @@ class OrucScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    color: Colors.grey,
-                    height: 1.4,
-                  ),
+                  style: const TextStyle(fontSize: 11.5, color: Colors.grey, height: 1.4),
                 ),
                 const SizedBox(height: 8),
-                // Badge
                 GestureDetector(
                   onTap: onTap,
                   child: Container(

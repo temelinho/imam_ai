@@ -3,20 +3,23 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
-  static ThemeData get lightTheme {
+  static ThemeData lightTheme(bool isArabic) {
+    final textTheme = isArabic
+        ? GoogleFonts.cairoTextTheme()
+        : GoogleFonts.poppinsTextTheme();
     return ThemeData(
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
         primary: AppColors.primary,
       ),
       useMaterial3: true,
-      textTheme: GoogleFonts.poppinsTextTheme(),
+      textTheme: textTheme,
       scaffoldBackgroundColor: AppColors.scaffoldBg,
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
-        titleTextStyle: GoogleFonts.poppins(
+        titleTextStyle: (isArabic ? GoogleFonts.cairo : GoogleFonts.poppins)(
           fontSize: 15,
           fontWeight: FontWeight.w800,
           color: Colors.white,

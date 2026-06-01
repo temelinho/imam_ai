@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_typography.dart';
+import '../l10n/l10n_scope.dart';
 
 class AbdestScreen extends StatelessWidget {
   final String selectedMezhep;
@@ -23,6 +24,9 @@ class AbdestScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10nScope.of(context);
+    final guidePath = l10n.guideAsset('guide_abdest');
+
     return Column(
       children: [
         // Sub-header for current Mezhep
@@ -38,7 +42,7 @@ class AbdestScreen extends StatelessWidget {
               border: Border.all(color: AppColors.cardBorder, width: 1),
             ),
             child: Text(
-              '$selectedMezhep mezhebi',
+              l10n.mezhepBadge(l10n.mezhepName(selectedMezhep)),
               style: const TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w700,
@@ -50,7 +54,7 @@ class AbdestScreen extends StatelessWidget {
         // Step List
         Expanded(
           child: FutureBuilder<String>(
-            future: DefaultAssetBundle.of(context).loadString('assets/data/guide_abdest.json'),
+            future: DefaultAssetBundle.of(context).loadString(guidePath),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
@@ -58,7 +62,7 @@ class AbdestScreen extends StatelessWidget {
                 );
               }
               if (snapshot.hasError || !snapshot.hasData) {
-                return const Center(child: Text('Veri yüklenemedi.'));
+                return Center(child: Text(l10n.dataLoadError));
               }
 
               try {
@@ -173,7 +177,7 @@ class AbdestScreen extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
-                                    isFarzStep ? 'Farz' : 'Sünnet',
+                                    isFarzStep ? l10n.farz : l10n.sunnet,
                                     style: const TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
@@ -190,7 +194,7 @@ class AbdestScreen extends StatelessWidget {
                   },
                 );
               } catch (e) {
-                return const Center(child: Text('Veri ayrıştırılamadı.'));
+                return Center(child: Text(l10n.dataParseError));
               }
             },
           ),

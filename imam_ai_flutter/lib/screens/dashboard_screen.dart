@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../models/prayer_time_info.dart';
+import '../l10n/l10n_scope.dart';
 
 class DashboardScreen extends StatelessWidget {
   final ValueNotifier<PrayerTimeInfo> prayerTimeNotifier;
@@ -14,22 +15,20 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10nScope.of(context);
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Next Prayer Countdown Card
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  AppColors.primary,
-                  Color(0xFF008B5D),
-                ],
+                colors: [AppColors.primary, Color(0xFF008B5D)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -45,7 +44,6 @@ class DashboardScreen extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Left Column
                 Expanded(
                   child: ValueListenableBuilder<PrayerTimeInfo>(
                     valueListenable: prayerTimeNotifier,
@@ -54,9 +52,9 @@ class DashboardScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Sonraki namaz vakti',
-                            style: TextStyle(
+                          Text(
+                            l10n.nextPrayerTime,
+                            style: const TextStyle(
                               fontSize: 13.0,
                               color: Color(0xC0FFFFFF),
                               fontWeight: FontWeight.w500,
@@ -64,7 +62,7 @@ class DashboardScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            info.name.isEmpty ? 'Yükleniyor...' : info.name,
+                            info.name.isEmpty ? l10n.loading : info.name,
                             style: const TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
@@ -73,9 +71,7 @@ class DashboardScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            info.time.isEmpty
-                                ? ''
-                                : '${info.time} · ${info.countdown}',
+                            info.time.isEmpty ? '' : '${info.time} · ${info.countdown}',
                             style: const TextStyle(
                               fontSize: 13.0,
                               color: Color(0xCCFFFFFF),
@@ -87,39 +83,18 @@ class DashboardScreen extends StatelessWidget {
                     },
                   ),
                 ),
-                // Right Badge
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: const Color(0x2EFFFFFF),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Column(
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'Bugün',
-                        style: TextStyle(
-                          fontSize: 11.0,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        '5',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          height: 1.1,
-                        ),
-                      ),
-                      Text(
-                        'vakit',
-                        style: TextStyle(
-                          fontSize: 11.0,
-                          color: Colors.white,
-                        ),
-                      ),
+                      Text(l10n.today, style: const TextStyle(fontSize: 11.0, color: Colors.white)),
+                      const Text('5', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white, height: 1.1)),
+                      Text(l10n.prayerCountUnit, style: const TextStyle(fontSize: 11.0, color: Colors.white)),
                     ],
                   ),
                 ),
@@ -127,9 +102,7 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-
-          // SECTION 1: Temel İbadetler & Rehberler
-          _buildSectionHeader('TEMEL İBADETLER & REHBERLER'),
+          _buildSectionHeader(l10n.sectionWorship),
           const SizedBox(height: 8),
           GridView.count(
             crossAxisCount: 2,
@@ -139,42 +112,16 @@ class DashboardScreen extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: [
-              _buildMenuCard(
-                icon: Icons.access_time_outlined,
-                label: 'Namaz vakitleri',
-                onTap: () => onMenuTap(1),
-              ),
-              _buildMenuCard(
-                icon: Icons.menu_book_outlined,
-                label: 'Kuran dinle',
-                onTap: () => onMenuTap(2),
-              ),
-              _buildMenuCard(
-                icon: Icons.explore_outlined,
-                label: 'Kıble yönü',
-                onTap: () => onMenuTap(4),
-              ),
-              _buildMenuCard(
-                icon: Icons.opacity_outlined,
-                label: 'Abdest rehberi',
-                onTap: () => onMenuTap(7),
-              ),
-              _buildMenuCard(
-                icon: Icons.nightlight_round_outlined,
-                label: 'Oruç bilgisi',
-                onTap: () => onMenuTap(6),
-              ),
-              _buildMenuCard(
-                icon: Icons.radar_outlined,
-                label: 'Zikirmatik (Sayaç)',
-                onTap: () => onMenuTap(8),
-              ),
+              _buildMenuCard(context, Icons.access_time_outlined, l10n.menuPrayerTimes, () => onMenuTap(1)),
+              _buildMenuCard(context, Icons.menu_book_outlined, l10n.menuListenQuran, () => onMenuTap(2)),
+              _buildMenuCard(context, Icons.explore_outlined, l10n.menuQibla, () => onMenuTap(4)),
+              _buildMenuCard(context, Icons.opacity_outlined, l10n.menuAblution, () => onMenuTap(7)),
+              _buildMenuCard(context, Icons.nightlight_round_outlined, l10n.menuFasting, () => onMenuTap(6)),
+              _buildMenuCard(context, Icons.radar_outlined, l10n.menuDhikr, () => onMenuTap(8)),
             ],
           ),
           const SizedBox(height: 20),
-
-          // SECTION 2: Günlük Araçlar & Takip
-          _buildSectionHeader('GÜNLÜK ARAÇLAR & TAKİP'),
+          _buildSectionHeader(l10n.sectionDaily),
           const SizedBox(height: 8),
           GridView.count(
             crossAxisCount: 2,
@@ -184,32 +131,14 @@ class DashboardScreen extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: [
-              _buildMenuCard(
-                icon: Icons.share_outlined,
-                label: 'Günün Paylaşımı',
-                onTap: () => onMenuTap(9),
-              ),
-              _buildMenuCard(
-                icon: Icons.check_box_outlined,
-                label: 'İbadet Takipçisi',
-                onTap: () => onMenuTap(10),
-              ),
-              _buildMenuCard(
-                icon: Icons.mic_none_outlined,
-                label: 'Sesli Ezber',
-                onTap: () => onMenuTap(11),
-              ),
-              _buildMenuCard(
-                icon: Icons.calculate_outlined,
-                label: 'Zekat Hesaplayıcı',
-                onTap: () => onMenuTap(13),
-              ),
+              _buildMenuCard(context, Icons.share_outlined, l10n.menuDailyShare, () => onMenuTap(9)),
+              _buildMenuCard(context, Icons.check_box_outlined, l10n.menuTracker, () => onMenuTap(10)),
+              _buildMenuCard(context, Icons.mic_none_outlined, l10n.menuMemorize, () => onMenuTap(11)),
+              _buildMenuCard(context, Icons.calculate_outlined, l10n.menuZakat, () => onMenuTap(13)),
             ],
           ),
           const SizedBox(height: 20),
-
-          // SECTION 3: Yardımcı Hizmetler
-          _buildSectionHeader('YARDIMCI HİZMETLER'),
+          _buildSectionHeader(l10n.sectionServices),
           const SizedBox(height: 8),
           GridView.count(
             crossAxisCount: 2,
@@ -219,16 +148,8 @@ class DashboardScreen extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: [
-              _buildMenuCard(
-                icon: Icons.place_outlined,
-                label: 'Yakın Camiler',
-                onTap: () => onMenuTap(12),
-              ),
-              _buildMenuCard(
-                icon: Icons.chat_bubble_outline_outlined,
-                label: 'Dini Sohbet (AI)',
-                onTap: () => onMenuTap(3),
-              ),
+              _buildMenuCard(context, Icons.place_outlined, l10n.menuMosques, () => onMenuTap(12)),
+              _buildMenuCard(context, Icons.chat_bubble_outline_outlined, l10n.menuChat, () => onMenuTap(3)),
             ],
           ),
           const SizedBox(height: 16),
@@ -249,11 +170,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuCard({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildMenuCard(BuildContext context, IconData icon, String label, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -280,11 +197,7 @@ class DashboardScreen extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.primary.withOpacity(0.12), width: 1),
               ),
-              child: Icon(
-                icon,
-                size: 28,
-                color: AppColors.primary,
-              ),
+              child: Icon(icon, size: 28, color: AppColors.primary),
             ),
             const SizedBox(height: 10),
             Text(

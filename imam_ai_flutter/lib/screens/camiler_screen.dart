@@ -1,8 +1,10 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/theme/app_colors.dart';
+import '../core/constants/city_coordinates.dart';
+import '../l10n/l10n_scope.dart';
+import '../location/location_scope.dart';
+import '../services/location_service.dart';
 
 class CamilerScreen extends StatefulWidget {
   final String selectedCity;
@@ -17,12 +19,8 @@ class CamilerScreen extends StatefulWidget {
 }
 
 class _CamilerScreenState extends State<CamilerScreen> {
-  bool _isLoading = false;
-  double _myLat = 38.3552; // Malatya center fallback
-  double _myLon = 38.3093; // Malatya center fallback
-  String _locationStatus = 'Şehir merkezine göre sıralandı';
+  LocationService? _locationService;
 
-  // List of pre-defined mosques grouped by city
   static const Map<String, List<Map<String, dynamic>>> _mosquesByCity = {
     'Malatya': [
       {'name': 'Yeni Cami (Teze Cami)', 'lat': 38.3502, 'lon': 38.3150, 'address': 'Merkez, Malatya'},
@@ -53,105 +51,72 @@ class _CamilerScreenState extends State<CamilerScreen> {
       {'name': 'Bursa Ulu Camii', 'lat': 40.1837, 'lon': 29.0617, 'address': 'Nalbantoğlu, Osmangazi'},
       {'name': 'Yeşil Camii', 'lat': 40.1814, 'lon': 29.0753, 'address': 'Yeşil, Yıldırım'},
       {'name': 'Emir Sultan Camii', 'lat': 40.1804, 'lon': 29.0818, 'address': 'Emirsultan, Yıldırım'},
-    ]
+    ],
+    'Antalya': [
+      {'name': 'Yivli Minare Camii', 'lat': 36.8866, 'lon': 30.7046, 'address': 'Kaleiçi, Antalya'},
+      {'name': 'Murat Paşa Camii', 'lat': 36.8871, 'lon': 30.7054, 'address': 'Muratpaşa, Antalya'},
+    ],
+    'Adana': [
+      {'name': 'Sabancı Merkez Camii', 'lat': 36.9969, 'lon': 35.3213, 'address': 'Reşatbey, Seyhan'},
+      {'name': 'Ulu Camii', 'lat': 36.9917, 'lon': 35.3308, 'address': 'Ulu Camii, Seyhan'},
+    ],
+    'Konya': [
+      {'name': 'Mevlana Camii', 'lat': 37.8714, 'lon': 32.5047, 'address': 'Aziziye, Karatay'},
+      {'name': 'Alaaddin Camii', 'lat': 37.8720, 'lon': 32.4925, 'address': 'Alaaddin, Karatay'},
+    ],
+    'Trabzon': [
+      {'name': 'Ayasofya Camii', 'lat': 41.0086, 'lon': 39.7208, 'address': 'Ayasofya, Ortahisar'},
+      {'name': 'Gülbahar Hatun Camii', 'lat': 41.0058, 'lon': 39.7265, 'address': 'Ortahisar, Trabzon'},
+    ],
+    'Diyarbakır': [
+      {'name': 'Ulu Camii', 'lat': 37.9116, 'lon': 40.2303, 'address': 'Sur, Diyarbakır'},
+      {'name': 'Hz. Süleyman Camii', 'lat': 37.9142, 'lon': 40.2351, 'address': 'Sur, Diyarbakır'},
+    ],
+    'Gaziantep': [
+      {'name': 'Ömeriye Camii', 'lat': 37.0594, 'lon': 37.3825, 'address': 'Şehitkamil, Gaziantep'},
+      {'name': 'Kurtuluş Camii', 'lat': 37.0660, 'lon': 37.3780, 'address': 'Şahinbey, Gaziantep'},
+    ],
   };
 
   @override
-  void initState() {
-    super.initState();
-    _loadDefaultCityCoordinates();
-    _fetchLiveLocation();
-  }
-
-  void _loadDefaultCityCoordinates() {
-    // City coords mapping
-    const Map<String, List<double>> cityCoords = {
-      'Malatya': [38.3552, 38.3093],
-      'İstanbul': [41.0082, 28.9784],
-      'Ankara': [39.9334, 32.8597],
-      'İzmir': [38.4192, 27.1287],
-      'Bursa': [40.1826, 29.0667],
-      'Antalya': [36.8969, 30.7133],
-      'Adana': [36.9914, 35.3289],
-      'Konya': [37.8714, 32.4847],
-      'Trabzon': [41.0027, 39.7168],
-      'Diyarbakır': [37.9144, 40.2306],
-      'Gaziantep': [37.0662, 37.3833],
-    };
-    final coords = cityCoords[widget.selectedCity] ?? [38.3552, 38.3093];
-    setState(() {
-      _myLat = coords[0];
-      _myLon = coords[1];
-    });
-  }
-
-  Future<void> _fetchLiveLocation() async {
-    setState(() => _isLoading = true);
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          setState(() => _isLoading = false);
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.low,
-        timeLimit: const Duration(seconds: 4),
-      );
-
-      setState(() {
-        _myLat = position.latitude;
-        _myLon = position.longitude;
-        _locationStatus = 'Canlı GPS konumuna göre sıralandı';
-      });
-    } catch (e) {
-      // Retain default city coordinates on failure
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final loc = LocationScope.of(context);
+    if (_locationService != loc) {
+      _locationService = loc;
     }
   }
 
-  double _calculateDistance(double lat, double lon) {
-    const double earthRadius = 6371.0; // in km
-    double dLat = (lat - _myLat) * math.pi / 180.0;
-    double dLon = (lon - _myLon) * math.pi / 180.0;
-
-    double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_myLat * math.pi / 180.0) *
-            math.cos(lat * math.pi / 180.0) *
-            math.sin(dLon / 2) *
-            math.sin(dLon / 2);
-
-    double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return earthRadius * c;
+  List<Map<String, dynamic>> _allMosques() {
+    final list = <Map<String, dynamic>>[];
+    for (final mosques in _mosquesByCity.values) {
+      list.addAll(mosques);
+    }
+    return list;
   }
 
-  void _openMapRoute(double lat, double lon, String name) async {
-    // Try native maps app via geo: URI first (works on Android natively)
+  List<Map<String, dynamic>> _mosquesForDisplay(LocationService loc) {
+    if (loc.fromGps && loc.hasLocation) {
+      return _allMosques();
+    }
+    final city = loc.nearestCity ?? widget.selectedCity;
+    return List<Map<String, dynamic>>.from(
+      _mosquesByCity[city] ?? _mosquesByCity['Malatya']!,
+    );
+  }
+
+  double _distanceKm(LocationService loc, double lat, double lon) {
+    final coords = loc.coordsOrCityFallback(widget.selectedCity);
+    return CityCoordinates.haversineKm(coords[0], coords[1], lat, lon);
+  }
+
+  Future<void> _openMapRoute(double lat, double lon, String name) async {
     final geoUri = Uri.parse('geo:$lat,$lon?q=$lat,$lon(${Uri.encodeComponent(name)})');
-    final mapsUrl = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=$lat,$lon&query_place_id=$name');
+    final mapsUrl = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lon');
 
     try {
       final launched = await launchUrl(geoUri, mode: LaunchMode.externalApplication);
       if (!launched) {
-        // Fallback to Google Maps browser link
         await launchUrl(mapsUrl, mode: LaunchMode.externalApplication);
       }
     } catch (_) {
@@ -160,7 +125,7 @@ class _CamilerScreenState extends State<CamilerScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Harita uygulaması açılamadı. Google Maps yüklü olduğundan emin olun.')),
+            SnackBar(content: Text(L10nScope.of(context).mapsError)),
           );
         }
       }
@@ -169,36 +134,37 @@ class _CamilerScreenState extends State<CamilerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Get list of mosques for selected city or use generic defaults
-    final rawMosques = _mosquesByCity[widget.selectedCity] ?? _mosquesByCity['Malatya']!;
-    
-    // Compute distance for all mosques and sort them
-    final List<Map<String, dynamic>> sortedMosques = rawMosques.map((m) {
+    final l10n = L10nScope.of(context);
+    final loc = LocationScope.of(context);
+    final rawMosques = _mosquesForDisplay(loc);
+
+    final sortedMosques = rawMosques.map((m) {
       return {
         ...m,
-        'distance': _calculateDistance(m['lat'] as double, m['lon'] as double),
+        'distance': _distanceKm(loc, m['lat'] as double, m['lon'] as double),
       };
-    }).toList();
+    }).toList()
+      ..sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
 
-    sortedMosques.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
+    final displayList = loc.fromGps ? sortedMosques.take(20).toList() : sortedMosques;
+    final statusText = loc.fromGps ? l10n.sortedByGps : l10n.sortedByCity;
 
     return Column(
       children: [
-        // Top GPS location status bar
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           color: Colors.white,
           child: Row(
             children: [
               Icon(
-                _locationStatus.contains('GPS') ? Icons.gps_fixed : Icons.location_on,
+                loc.fromGps ? Icons.gps_fixed : Icons.location_on,
                 size: 16,
                 color: AppColors.primary,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  _locationStatus,
+                  statusText,
                   style: const TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
@@ -207,30 +173,49 @@ class _CamilerScreenState extends State<CamilerScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: _fetchLiveLocation,
-                child: const Icon(
-                  Icons.refresh,
-                  size: 20,
-                  color: Colors.grey,
-                ),
+                onTap: () => loc.refresh(),
+                child: const Icon(Icons.refresh, size: 20, color: Colors.grey),
               ),
             ],
           ),
         ),
-        if (_isLoading)
+        if (loc.loading)
           const LinearProgressIndicator(color: AppColors.primary, backgroundColor: AppColors.surface2),
-        // Mosque Lists
+        if (loc.fromGps && displayList.isNotEmpty)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFD1FAE5)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.near_me, color: AppColors.primary, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.nearestMosqueHint(displayList.first['name'] as String),
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.all(16.0),
-            itemCount: sortedMosques.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            itemCount: displayList.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
-              final mosque = sortedMosques[index];
+              final mosque = displayList[index];
               final distance = mosque['distance'] as double;
               final distanceStr = distance < 1.0
                   ? '${(distance * 1000).toStringAsFixed(0)} m'
                   : '${distance.toStringAsFixed(1)} km';
+              final isNearest = index == 0 && loc.fromGps;
 
               return InkWell(
                 onTap: () => _openMapRoute(
@@ -240,105 +225,115 @@ class _CamilerScreenState extends State<CamilerScreen> {
                 ),
                 borderRadius: BorderRadius.circular(11),
                 child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.cardBg,
-                  borderRadius: BorderRadius.circular(11),
-                  border: Border.all(color: AppColors.cardBorder, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    )
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    // Mosque Icon Container
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface2,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.mosque,
-                        color: AppColors.primary,
-                        size: 24,
-                      ),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isNearest ? const Color(0xFFF0FDF9) : AppColors.cardBg,
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(
+                      color: isNearest ? AppColors.primary : AppColors.cardBorder,
+                      width: isNearest ? 2 : 1.5,
                     ),
-                    const SizedBox(width: 12),
-                    // Details Column
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            mosque['name'] as String,
-                            style: const TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryDark,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            mosque['address'] as String,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '📍 Uzaklık: $distanceStr',
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryLight,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Navigation Button
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.primary, AppColors.primaryDark],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      )
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface2,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withOpacity(0.35),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          )
-                        ],
+                        child: Icon(
+                          isNearest ? Icons.mosque_rounded : Icons.mosque,
+                          color: AppColors.primary,
+                          size: 24,
+                        ),
                       ),
-                      child: const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.map_outlined, color: Colors.white, size: 18),
-                          SizedBox(height: 2),
-                          Text(
-                            'Harita',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    mosque['name'] as String,
+                                    style: const TextStyle(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primaryDark,
+                                    ),
+                                  ),
+                                ),
+                                if (isNearest)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      l10n.nearestTag,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 4),
+                            Text(
+                              mosque['address'] as String,
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              l10n.distanceLabel(distanceStr),
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [AppColors.primary, AppColors.primaryDark],
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.map_outlined, color: Colors.white, size: 18),
+                            const SizedBox(height: 2),
+                            Text(
+                              l10n.openMap,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },

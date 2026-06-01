@@ -3,8 +3,10 @@ import 'package:just_audio/just_audio.dart';
 import '../core/theme/app_colors.dart';
 import '../core/constants/surah_list.dart';
 import '../models/surah.dart';
-import '../services/audio_service.dart';
+import '../services/quran_playback.dart';
+import '../services/quran_audio_handler.dart';
 import 'quran_reader_screen.dart';
+import 'quran_now_playing_screen.dart';
 
 class QuranScreen extends StatefulWidget {
   final String selectedReciter;
@@ -19,14 +21,16 @@ class QuranScreen extends StatefulWidget {
 }
 
 class _QuranScreenState extends State<QuranScreen> {
-  final QuranAudioService _audioService = QuranAudioService();
+  QuranAudioHandler? _handler;
+  bool _playbackReady = false;
   Surah? _currentSurah;
   bool _isPlaying = false;
   bool _showSearch = false;
-  int _selectedTab = 0; // 0 for Audio Quran, 1 for Written Quran
+  int _selectedTab = 0;
 
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
+  int _lastPositionSecond = -1;
 
   List<Surah> _filteredSurahs = quranSurahs;
   final TextEditingController _searchController = TextEditingController();
@@ -34,54 +38,116 @@ class _QuranScreenState extends State<QuranScreen> {
   @override
   void initState() {
     super.initState();
-    _currentSurah = quranSurahs.first; // Default to Fatihah
-    _initAudioListeners();
+    _currentSurah = quranSurahs.first;
+    _preparePlayback();
+  }
+
+  Future<void> _preparePlayback() async {
+    try {
+      final handler = await QuranPlayback.ensureInit();
+      if (!mounted) return;
+      setState(() {
+        _handler = handler;
+        _playbackReady = true;
+        _currentSurah = handler.currentSurah ?? quranSurahs.first;
+      });
+      _initAudioListeners();
+    } catch (_) {
+      if (mounted) setState(() => _playbackReady = false);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant QuranScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedReciter != widget.selectedReciter && _handler != null) {
+      _handler!.setReciter(widget.selectedReciter);
+    }
   }
 
   void _initAudioListeners() {
-    _audioService.player.positionStream.listen((pos) {
-      if (mounted) setState(() => _position = pos);
+    final handler = _handler;
+    if (handler == null) return;
+
+    handler.player.positionStream.listen((pos) {
+      if (!mounted) return;
+      if (pos.inSeconds == _lastPositionSecond) return;
+      _lastPositionSecond = pos.inSeconds;
+      setState(() => _position = pos);
     });
 
-    _audioService.player.durationStream.listen((dur) {
+    handler.player.durationStream.listen((dur) {
       if (mounted) setState(() => _duration = dur ?? Duration.zero);
     });
 
-    _audioService.player.playerStateStream.listen((state) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = state.playing;
-        });
-        if (state.processingState == ProcessingState.completed) {
-          _playNext();
-        }
-      }
+    handler.player.playerStateStream.listen((state) {
+      if (!mounted) return;
+      setState(() {
+        _isPlaying = state.playing;
+        _currentSurah = handler.currentSurah ?? _currentSurah;
+      });
     });
   }
 
-  void _playSurah(Surah surah) {
+  Future<void> _playSurah(Surah surah) async {
+    final handler = _handler ?? await QuranPlayback.ensureInit();
+    if (!mounted) return;
     setState(() {
+      _handler = handler;
+      _playbackReady = true;
       _currentSurah = surah;
       _position = Duration.zero;
       _duration = Duration.zero;
     });
-    _audioService.playSurah(surah.number, widget.selectedReciter);
+    await handler.playSurah(surah.number, widget.selectedReciter);
   }
 
-  void _togglePlayPause() {
+  void _openNowPlaying(Surah surah, {bool autoPlay = true}) {
+    setState(() => _currentSurah = surah);
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: true,
+        fullscreenDialog: true,
+        pageBuilder: (_, __, ___) => QuranNowPlayingScreen(
+          initialSurah: surah,
+          selectedReciter: widget.selectedReciter,
+          autoPlay: autoPlay,
+        ),
+        transitionsBuilder: (_, animation, __, child) {
+          final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          return SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(curve),
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _togglePlayPause() async {
+    final handler = _handler;
+    if (handler == null) return;
     if (_isPlaying) {
-      _audioService.pause();
+      await handler.pause();
+    } else if (handler.player.processingState == ProcessingState.idle) {
+      await _playSurah(_currentSurah ?? quranSurahs.first);
     } else {
-      _audioService.resume();
+      await handler.play();
     }
   }
 
-  void _playNext() {
-    if (_currentSurah == null) return;
-    int nextIndex = quranSurahs.indexWhere((s) => s.number == _currentSurah!.number) + 1;
-    if (nextIndex < quranSurahs.length) {
-      _playSurah(quranSurahs[nextIndex]);
-    }
+  Future<void> _playNext() async {
+    final handler = _handler;
+    if (handler == null) return;
+    await handler.skipToNext();
+    if (mounted) setState(() => _currentSurah = handler.currentSurah);
+  }
+
+  Future<void> _playPrevious() async {
+    final handler = _handler;
+    if (handler == null) return;
+    await handler.skipToPrevious();
+    if (mounted) setState(() => _currentSurah = handler.currentSurah);
   }
 
   void _filterSurahs(String query) {
@@ -100,15 +166,12 @@ class _QuranScreenState extends State<QuranScreen> {
   }
 
   String _formatDuration(Duration d) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(d.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(d.inSeconds.remainder(60));
-    return "$twoDigitMinutes:$twoDigitSeconds";
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    return '${twoDigits(d.inMinutes.remainder(60))}:${twoDigits(d.inSeconds.remainder(60))}';
   }
 
   @override
   void dispose() {
-    _audioService.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -117,16 +180,9 @@ class _QuranScreenState extends State<QuranScreen> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Tab Selector for Audio vs Reading
         _buildTabSelector(),
-
-        // Search bar (toggled via AppBar search icon)
         _buildSearchField(),
-
-        // Playback player card (only visible on Audio tab)
-        if (_selectedTab == 0 && _currentSurah != null) _buildPlayerCard(),
-
-        // Surah List
+        if (_selectedTab == 0 && _currentSurah != null && _playbackReady) _buildPlayerCard(),
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -149,7 +205,7 @@ class _QuranScreenState extends State<QuranScreen> {
                       child: InkWell(
                         onTap: () {
                           if (_selectedTab == 0) {
-                            _playSurah(surah);
+                            _openNowPlaying(surah);
                           } else {
                             Navigator.of(context).push(
                               MaterialPageRoute(
@@ -163,12 +219,11 @@ class _QuranScreenState extends State<QuranScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 4.0),
                           child: Row(
                             children: [
-                              // Left 32x32 number circle
                               Container(
                                 width: 32,
                                 height: 32,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primary,
+                                decoration: BoxDecoration(
+                                  color: isCurrent ? AppColors.primaryDark : AppColors.primary,
                                   shape: BoxShape.circle,
                                 ),
                                 alignment: Alignment.center,
@@ -182,38 +237,33 @@ class _QuranScreenState extends State<QuranScreen> {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              // Middle names
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       surah.englishNameTranslation,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
-                                        color: Colors.black87,
+                                        color: isCurrent ? AppColors.primaryDark : Colors.black87,
                                       ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       '${surah.numberOfAyahs} ayet · ${surah.revelationType == 'Meccan' ? 'Mekki' : 'Medeni'}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey,
-                                      ),
+                                      style: const TextStyle(fontSize: 11, color: Colors.grey),
                                     ),
                                   ],
                                 ),
                               ),
-                              // Arabic Surah name
                               Text(
                                 surah.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: 'ScheherazadeNew',
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
+                                  color: isCurrent ? AppColors.primaryDark : AppColors.primary,
                                 ),
                               ),
                             ],
@@ -222,15 +272,10 @@ class _QuranScreenState extends State<QuranScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Right 32x32 action circle
                     GestureDetector(
                       onTap: () {
                         if (_selectedTab == 0) {
-                          if (isCurrent) {
-                            _togglePlayPause();
-                          } else {
-                            _playSurah(surah);
-                          }
+                          _openNowPlaying(surah);
                         } else {
                           Navigator.of(context).push(
                             MaterialPageRoute(
@@ -366,105 +411,162 @@ class _QuranScreenState extends State<QuranScreen> {
   }
 
   Widget _buildPlayerCard() {
+    final maxMs = _duration.inMilliseconds.toDouble();
+    final cap = maxMs > 0 ? maxMs : 1.0;
+    final posMs = _position.inMilliseconds.toDouble().clamp(0.0, cap);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
       decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(14),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF005F41), Color(0xFF00B27A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.2),
-            blurRadius: 8,
+            color: AppColors.primary.withOpacity(0.35),
+            blurRadius: 12,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Left music icon 24px
-          const Icon(
-            Icons.music_note_outlined,
-            color: Colors.white,
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          // Middle content
-          Expanded(
-            child: Column(
+          GestureDetector(
+            onTap: () => _openNowPlaying(_currentSurah!, autoPlay: false),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '${_currentSurah!.englishNameTranslation} Suresi',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 26),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${_currentSurah!.englishNameTranslation} Suresi',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.selectedReciter,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${_formatDuration(_position)} / ${_duration.inMilliseconds > 0 ? _formatDuration(_duration) : '--:--'} · Tam ekran için dokun',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: Colors.white.withOpacity(0.65),
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${widget.selectedReciter} · ${_formatDuration(_position)} / ${_duration.inMilliseconds > 0 ? _formatDuration(_duration) : "0:00"}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.white70,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                // Custom thin Slider progress bar
-                SizedBox(
-                  height: 12,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: Colors.white,
-                      inactiveTrackColor: Colors.white24,
-                      thumbColor: Colors.white,
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 3),
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 6),
-                    ),
-                    child: Slider(
-                      value: _position.inMilliseconds.toDouble(),
-                      max: _duration.inMilliseconds.toDouble() > 0
-                          ? _duration.inMilliseconds.toDouble()
-                          : 1.0,
-                      onChanged: (val) {
-                        _audioService.seek(Duration(milliseconds: val.toInt()));
-                      },
-                    ),
-                  ),
-                ),
+                Icon(Icons.open_in_full_rounded, color: Colors.white.withOpacity(0.7), size: 20),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          // Right 34x34 pause circle
-          GestureDetector(
-            onTap: _togglePlayPause,
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.20),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                _isPlaying ? Icons.pause : Icons.play_arrow,
-                color: Colors.white,
-                size: 20,
-              ),
+          const SizedBox(height: 6),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: Colors.white,
+              inactiveTrackColor: Colors.white24,
+              thumbColor: Colors.white,
+              trackHeight: 3,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
             ),
+            child: Slider(
+              value: posMs,
+              max: maxMs > 0 ? maxMs : 1,
+              onChanged: (val) => _handler?.seek(Duration(milliseconds: val.toInt())),
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _playerControl(
+                icon: Icons.skip_previous_rounded,
+                size: 32,
+                onTap: () {
+                  _playPrevious();
+                },
+              ),
+              _playerControl(
+                icon: _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                size: 44,
+                filled: true,
+                onTap: _togglePlayPause,
+              ),
+              _playerControl(
+                icon: Icons.skip_next_rounded,
+                size: 32,
+                onTap: () {
+                  _playNext();
+                },
+              ),
+              _playerControl(
+                icon: Icons.open_in_full_rounded,
+                size: 26,
+                onTap: () => _openNowPlaying(_currentSurah!, autoPlay: false),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
+  Widget _playerControl({
+    required IconData icon,
+    required double size,
+    required VoidCallback onTap,
+    bool filled = false,
+  }) {
+    return Material(
+      color: filled ? Colors.white : Colors.white.withOpacity(0.15),
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: filled ? 52 : 42,
+          height: filled ? 52 : 42,
+          child: Icon(
+            icon,
+            size: size,
+            color: filled ? AppColors.primaryDark : Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
   void toggleSearch() {
-    setState(() {
-      _showSearch = !_showSearch;
-    });
+    setState(() => _showSearch = !_showSearch);
   }
 }

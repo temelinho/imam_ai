@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_colors.dart';
+import '../l10n/l10n_scope.dart';
+import '../l10n/app_localizations.dart';
+import '../services/locale_service.dart';
+import '../location/location_scope.dart';
+import '../services/location_service.dart';
 import '../models/prayer_time_info.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/lazy_load_widget.dart';
@@ -50,10 +55,39 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<State<CamilerScreen>> _camilerKey = GlobalKey<State<CamilerScreen>>();
   final GlobalKey<ZikirmatikScreenState> _zikirmatikKey = GlobalKey<ZikirmatikScreenState>();
 
+  LocationService? _locationService;
+
   @override
   void initState() {
     super.initState();
     _loadPreferences();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final loc = LocationScope.of(context);
+    if (_locationService != loc) {
+      _locationService?.removeListener(_syncCityFromLocation);
+      _locationService = loc;
+      _locationService!.addListener(_syncCityFromLocation);
+      _syncCityFromLocation();
+    }
+  }
+
+  @override
+  void dispose() {
+    _locationService?.removeListener(_syncCityFromLocation);
+    super.dispose();
+  }
+
+  void _syncCityFromLocation() {
+    final loc = _locationService;
+    if (loc == null || !loc.fromGps) return;
+    final city = loc.nearestCity;
+    if (city != null && city != _selectedCity && mounted) {
+      _updateCity(city, showSnack: true);
+    }
   }
 
   Future<void> _loadPreferences() async {
@@ -65,12 +99,21 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _updateCity(String city) async {
+  Future<void> _updateCity(String city, {bool showSnack = false}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selected_city', city);
-    setState(() {
-      _selectedCity = city;
-    });
+    if (!mounted) return;
+    setState(() => _selectedCity = city);
+    if (showSnack) {
+      final l10n = L10nScope.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.locationAutoCity}: $city'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _onSettingsChanged(String mezhep, String reciter) {
@@ -93,27 +136,23 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // Generate dynamic bottom navigation bar items
-  List<BottomNavItem> _getBottomNavItems() {
+  List<BottomNavItem> _getBottomNavItems(AppLocalizations l10n) {
     if (_currentIndex == 7) {
-      // Abdest Rehberi is active — Abdest öne çıksın
-      return const [
-        BottomNavItem(label: 'Ana', icon: Icons.home_outlined, screenIndex: 0),
-        BottomNavItem(label: 'Vakit', icon: Icons.access_time_outlined, screenIndex: 1),
-        BottomNavItem(label: 'Abdest', icon: Icons.opacity_outlined, screenIndex: 7),
-        BottomNavItem(label: 'Asistan', icon: Icons.auto_awesome, screenIndex: 3),
-        BottomNavItem(label: 'Kıble', icon: Icons.explore_outlined, screenIndex: 4),
-      ];
-    } else {
-      // Standart sekmeler — Ayarlar (5) dahil her durum
-      return const [
-        BottomNavItem(label: 'Ana', icon: Icons.home_outlined, screenIndex: 0),
-        BottomNavItem(label: 'Vakit', icon: Icons.access_time_outlined, screenIndex: 1),
-        BottomNavItem(label: 'Kuran', icon: Icons.menu_book_outlined, screenIndex: 2),
-        BottomNavItem(label: 'Asistan', icon: Icons.auto_awesome, screenIndex: 3),
-        BottomNavItem(label: 'Kıble', icon: Icons.explore_outlined, screenIndex: 4),
+      return [
+        BottomNavItem(label: l10n.navHome, icon: Icons.home_outlined, screenIndex: 0),
+        BottomNavItem(label: l10n.navPrayer, icon: Icons.access_time_outlined, screenIndex: 1),
+        BottomNavItem(label: l10n.navAblution, icon: Icons.opacity_outlined, screenIndex: 7),
+        BottomNavItem(label: l10n.navAssistant, icon: Icons.auto_awesome, screenIndex: 3),
+        BottomNavItem(label: l10n.navQibla, icon: Icons.explore_outlined, screenIndex: 4),
       ];
     }
+    return [
+      BottomNavItem(label: l10n.navHome, icon: Icons.home_outlined, screenIndex: 0),
+      BottomNavItem(label: l10n.navPrayer, icon: Icons.access_time_outlined, screenIndex: 1),
+      BottomNavItem(label: l10n.navQuran, icon: Icons.menu_book_outlined, screenIndex: 2),
+      BottomNavItem(label: l10n.navAssistant, icon: Icons.auto_awesome, screenIndex: 3),
+      BottomNavItem(label: l10n.navQibla, icon: Icons.explore_outlined, screenIndex: 4),
+    ];
   }
 
   // Find active index inside the generated bottom items list
@@ -134,24 +173,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return 0;
   }
 
-  // Render unified AppBar headers exactly matching specs
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(AppLocalizations l10n, LocaleService localeService) {
     String title = '';
     String subtitle = '';
     Widget? actionWidget;
+    final mezhepLabel = l10n.mezhepName(_selectedMezhep);
+    final dateStr = DateFormat(localeService.datePattern(), localeService.dateLocaleTag()).format(DateTime.now());
 
     switch (_currentIndex) {
       case 0:
-        title = 'İmam AI';
-        subtitle = '$_selectedCity · $_selectedMezhep mezhebi';
+        title = l10n.appName;
+        subtitle = l10n.subtitleHome(_selectedCity, mezhepLabel);
         actionWidget = _buildAppBarAction(
           icon: Icons.settings,
           onTap: () => setState(() => _currentIndex = 5),
         );
         break;
       case 1:
-        title = 'Namaz vakitleri';
-        subtitle = '${DateFormat('dd MMMM yyyy', 'tr_TR').format(DateTime.now())} · $_selectedCity';
+        title = l10n.titlePrayerTimes;
+        subtitle = l10n.subtitlePrayerDate(dateStr, _selectedCity);
         actionWidget = PopupMenuButton<String>(
           icon: Container(
             width: 30,
@@ -175,8 +215,8 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         break;
       case 2:
-        title = 'Kuran-ı Kerim';
-        subtitle = '114 sure · sesli okuma';
+        title = l10n.titleQuran;
+        subtitle = l10n.subtitleQuran;
         actionWidget = _buildAppBarAction(
           icon: Icons.search,
           onTap: () {
@@ -188,8 +228,8 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         break;
       case 3:
-        title = 'İmam AI';
-        subtitle = '$_selectedMezhep · Ehl-i Sünnet';
+        title = l10n.appName;
+        subtitle = '$mezhepLabel · ${l10n.subtitleChat}';
         actionWidget = _buildAppBarAction(
           icon: Icons.refresh,
           onTap: () {
@@ -203,42 +243,40 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         break;
       case 4:
-        title = 'Kıble yönü';
-        subtitle = 'GPS ile hesaplandı';
+        title = l10n.titleQibla;
+        subtitle = l10n.subtitleQibla;
         actionWidget = _buildAppBarAction(
           icon: Icons.my_location,
-          onTap: () {
-            setState(() {});
-          },
+          onTap: () => LocationScope.of(context).refresh(),
         );
         break;
       case 5:
-        title = 'Mezhep seçin';
-        subtitle = 'Tercihlerinize göre ayarlayın';
+        title = l10n.titleSettings;
+        subtitle = l10n.subtitleSettings;
         actionWidget = _buildAppBarAction(
           icon: Icons.tune,
           onTap: () {},
         );
         break;
       case 6:
-        title = 'Oruç bilgisi';
-        subtitle = 'Mezhepler arası karşılaştırma';
+        title = l10n.titleFasting;
+        subtitle = l10n.subtitleFasting;
         actionWidget = _buildAppBarAction(
           icon: Icons.nightlight_round,
           onTap: () {},
         );
         break;
       case 7:
-        title = 'Abdest rehberi';
-        subtitle = 'Adım adım anlatım';
+        title = l10n.titleAblution;
+        subtitle = l10n.subtitleAblution;
         actionWidget = _buildAppBarAction(
           icon: Icons.opacity,
           onTap: () {},
         );
         break;
       case 8:
-        title = 'Zikirmatik';
-        subtitle = 'Günlük zikir sayacı';
+        title = l10n.titleDhikr;
+        subtitle = l10n.subtitleDhikr;
         actionWidget = _buildAppBarAction(
           icon: Icons.restore,
           onTap: () {
@@ -247,47 +285,40 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         break;
       case 9:
-        title = 'Günün Paylaşımı';
-        subtitle = 'Ayet ve Hadis kartları';
+        title = l10n.titleDailyShare;
+        subtitle = l10n.subtitleDailyShare;
         actionWidget = _buildAppBarAction(
           icon: Icons.share,
           onTap: () {},
         );
         break;
       case 10:
-        title = 'İbadet Takipçisi';
-        subtitle = 'Haftalık ibadet planı';
+        title = l10n.titleTracker;
+        subtitle = l10n.subtitleTracker;
         actionWidget = _buildAppBarAction(
           icon: Icons.analytics_outlined,
           onTap: () {},
         );
         break;
       case 11:
-        title = 'Sesli Ezber';
-        subtitle = 'Sure ezber asistanı';
+        title = l10n.titleMemorize;
+        subtitle = l10n.subtitleMemorize;
         actionWidget = _buildAppBarAction(
           icon: Icons.record_voice_over,
           onTap: () {},
         );
         break;
       case 12:
-        title = 'Yakın Camiler';
-        subtitle = 'Konum bazlı yol tarifi';
+        title = l10n.titleMosques;
+        subtitle = l10n.subtitleMosques;
         actionWidget = _buildAppBarAction(
           icon: Icons.my_location,
-          onTap: () {
-            try {
-              // ignore: invalid_use_of_protected_member
-              (_camilerKey.currentState as dynamic)?.fetchLiveLocation();
-            } catch (e) {
-              // Fail-safe
-            }
-          },
+          onTap: () => LocationScope.of(context).refresh(),
         );
         break;
       case 13:
-        title = 'Zekat Hesaplayıcı';
-        subtitle = 'Adım adım zekat hesaplama';
+        title = l10n.titleZakat;
+        subtitle = l10n.subtitleZakat;
         actionWidget = _buildAppBarAction(
           icon: Icons.calculate,
           onTap: () {},
@@ -301,7 +332,7 @@ class _HomeScreenState extends State<HomeScreen> {
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (title == 'İmam AI') ...[
+          if (title == l10n.appName) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: Image.asset(
@@ -369,7 +400,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomNavItems = _getBottomNavItems();
+    final l10n = L10nScope.of(context);
+    final localeService = L10nScope.localeServiceOf(context);
+    final bottomNavItems = _getBottomNavItems(l10n);
     final activeBottomIndex = _getActiveBottomIndex(bottomNavItems);
 
     return PopScope(
@@ -381,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       },
       child: Scaffold(
-        appBar: _buildAppBar(),
+        appBar: _buildAppBar(l10n, localeService),
         body: IndexedStack(
           index: _currentIndex,
           children: [

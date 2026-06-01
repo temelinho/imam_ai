@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../l10n/l10n_scope.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme/app_colors.dart';
@@ -94,12 +95,12 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
           _notificationsEnabled[key] = enabled;
         });
       }
-      if (enabled && _adjustedTimes.containsKey(key)) {
+      if (enabled && _adjustedTimes.containsKey(key) && mounted) {
         final timeStr = _adjustedTimes[key]!;
         final prayerTime = _parseTimeToToday(timeStr);
         await _notificationService.schedulePrayerNotification(
           id: i,
-          prayerName: _getTurkishName(key),
+          prayerName: _getPrayerName(context, key),
           time: prayerTime,
         );
       }
@@ -147,7 +148,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
       });
     }
 
-    final nextName = _getTurkishName(nextKey);
+    if (!mounted) return;
+    final nextName = _getPrayerName(context, nextKey);
     final nextTimeStr = _adjustedTimes[nextKey] ?? '';
     widget.onTimeUpdate(nextName, nextTimeStr, countStr);
   }
@@ -158,16 +160,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
     return DateTime(now.year, now.month, now.day, int.parse(parts[0]), int.parse(parts[1]));
   }
 
-  String _getTurkishName(String key) {
-    switch (key) {
-      case 'imsak': return 'İmsak';
-      case 'gunes': return 'Güneş';
-      case 'ogle': return 'Öğle';
-      case 'ikindi': return 'İkindi';
-      case 'aksam': return 'Akşam';
-      case 'yatsi': return 'Yatsı';
-      default: return '';
-    }
+  String _getPrayerName(BuildContext context, String key) {
+    return L10nScope.of(context).prayerName(key);
   }
 
   bool _isPrayerActive(String key) {
@@ -219,6 +213,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
   }
 
   void _toggleNotification(String key) async {
+    final l10n = L10nScope.of(context);
     final enabled = _notificationsEnabled[key] ?? false;
     setState(() => _notificationsEnabled[key] = !enabled);
 
@@ -231,13 +226,13 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
       final prayerTime = _parseTimeToToday(timeStr);
       await _notificationService.schedulePrayerNotification(
         id: index,
-        prayerName: _getTurkishName(key),
+        prayerName: _getPrayerName(context, key),
         time: prayerTime,
       );
       await _playEzan();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${_getTurkishName(key)} vakti için ezan bildirimi kuruldu 🕌'),
+          content: Text(l10n.notifSet(_getPrayerName(context, key))),
           backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -247,7 +242,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
       await _notificationService.cancelNotification(index);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${_getTurkishName(key)} vakti bildirimi iptal edildi 🔕'),
+          content: Text(l10n.notifCancelled(_getPrayerName(context, key))),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -267,12 +262,13 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10nScope.of(context);
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     final sortedKeys = ['imsak', 'gunes', 'ogle', 'ikindi', 'aksam', 'yatsi'];
-    final nextName = _getTurkishName(_nextPrayerKey);
+    final nextName = _getPrayerName(context, _nextPrayerKey);
 
     return Container(
       color: const Color(0xFFF2F4F3),
@@ -308,7 +304,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Sonraki vakit',
+                          l10n.nextPrayer,
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.75),
                             fontSize: 13,
@@ -360,9 +356,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
                 children: [
-                  _chip(widget.selectedMezhep, const Color(0xFFD1FAE5), AppColors.primaryDark),
+                  _chip(l10n.mezhepName(widget.selectedMezhep), const Color(0xFFD1FAE5), AppColors.primaryDark),
                   const SizedBox(width: 8),
-                  _chip('Diyanet API', const Color(0xFFFEF3E2), const Color(0xFF7A4A00)),
+                  _chip(l10n.diyanetApi, const Color(0xFFFEF3E2), const Color(0xFF7A4A00)),
                 ],
               ),
             ),
@@ -379,7 +375,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
                   final isActive = _isPrayerActive(key);
                   final isNext = key == _nextPrayerKey && !isActive;
                   final notifEnabled = _notificationsEnabled[key] ?? false;
-                  final name = _getTurkishName(key);
+                  final name = _getPrayerName(context, key);
                   final time = _adjustedTimes[key] ?? '--:--';
                   final icon = _getPrayerIcon(key);
                   final iconColor = _getPrayerIconColor(key);
@@ -439,7 +435,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
                               ),
                               if (isNext)
                                 Text(
-                                  'Sıradaki vakit',
+                                  l10n.upcomingPrayer,
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: AppColors.primary,
@@ -448,7 +444,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen>
                                 ),
                               if (isActive)
                                 Text(
-                                  'Şu anki vakit',
+                                  l10n.currentPrayer,
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.white.withOpacity(0.8),
