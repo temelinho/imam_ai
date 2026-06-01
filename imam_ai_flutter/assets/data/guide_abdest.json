@@ -1,0 +1,131 @@
+{
+  "Hanefi": [
+    {
+      "stepNumber": 1,
+      "title": "Niyet ve Besmele",
+      "description": "Niyet edilir ve 'Eûzü-Besmele' çekilerek eller bileklere kadar üç defa yıkanır.",
+      "arabicText": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ"
+    },
+    {
+      "stepNumber": 2,
+      "title": "Ağza Su Verme (Mazmaza)",
+      "description": "Sağ el ile ağza üç defa su verilerek çalkalanır.",
+      "note": "Hanefi mezhebine göre ağza su vermek sünnettir."
+    },
+    {
+      "stepNumber": 3,
+      "title": "Buruna Su Verme (İstinsak)",
+      "description": "Sağ el ile buruna üç defa su çekilip sol el ile temizlenir."
+    },
+    {
+      "stepNumber": 4,
+      "title": "Yüzü Yıkama",
+      "description": "Alından çene altına, kulak yumuşağına kadar yüz üç defa yıkanır."
+    },
+    {
+      "stepNumber": 5,
+      "title": "Kolları Yıkama",
+      "description": "Önce sağ, sonra sol kol dirseklerle beraber üç defa yıkanır."
+    },
+    {
+      "stepNumber": 6,
+      "title": "Başı Meshetmek",
+      "description": "Sağ el ıslatılarak başın en az dörtte biri meshedilir."
+    },
+    {
+      "stepNumber": 7,
+      "title": "Kulak ve Boyun Meshi",
+      "description": "Islak ellerin serçe parmaklarıyla kulak içi, baş parmaklarıyla kulak dışı ve diğer üç parmağın dışıyla boyun meshedilir."
+    },
+    {
+      "stepNumber": 8,
+      "title": "Ayakları Yıkama",
+      "description": "Önce sağ, sonra sol ayak topuklarla birlikte, parmak aralarından başlanarak üç defa yıkanır."
+    }
+  ],
+  "Şafi": [
+    {
+      "stepNumber": 1,
+      "title": "Niyet ve Besmele (Farz)",
+      "description": "Yüzü yıkarken kalpten abdest almaya niyet etmek farzdır. Besmele çekilir ve eller üç defa yıkanır.",
+      "note": "Şafi mezhebine göre yüz yıkanırken niyet etmek farzdır."
+    },
+    {
+      "stepNumber": 2,
+      "title": "Ağız ve Burun Temizliği",
+      "description": "Ağza ve buruna aynı anda veya ayrı ayrı su verilerek temizlenir."
+    },
+    {
+      "stepNumber": 3,
+      "title": "Yüzü Yıkama (Farz)",
+      "description": "Yüzün tamamı (alın saç bitiminden çene altına kadar) bir kez yıkanması farz, üç kez yıkanması sünnettir."
+    },
+    {
+      "stepNumber": 4,
+      "title": "Kolları Yıkama (Farz)",
+      "description": "Önce sağ, sonra sol kol dirseklerle birlikte yıkanır. Birer defa yıkamak farz, üçer defa yıkamak sünnettir."
+    },
+    {
+      "stepNumber": 5,
+      "title": "Başı Meshetmek (Farz)",
+      "description": "Baştaki birkaç saç telinin dahi olsa ıslak elle meshedilmesi farzdır. Başın tamamını meshetmek ise sünnettir."
+    },
+    {
+      "stepNumber": 6,
+      "title": "Kulakları Meshetmek",
+      "description": "Kulakların içi ve dışı yeni bir su ile meshedilir (Sünnettir)."
+    },
+    {
+      "stepNumber": 7,
+      "title": "Ayakları Yıkama (Farz)",
+      "description": "Önce sağ, sonra sol ayak topuk kemikleriyle birlikte yıkanır. Parmak aralarının yıkanması da ihmal edilmemelidir."
+    },
+    {
+      "stepNumber": 8,
+      "title": "Tertip (Farz)",
+      "description": "Yukarıdaki adımların sırasıyla (tertip üzere) yapılması Şafi mezhebinde abdestin farzlarındandır.",
+      "note": "Hanefi mezhebinde tertip sünnet iken Şafi mezhebinde farzdır."
+    }
+  ],
+  "Maliki": [
+    {
+      "stepNumber": 1,
+      "title": "Niyet ve Muvalat (Farz)",
+      "description": "Abdestin başında niyet edilir. Azaları kuruyacak kadar ara vermeden yıkamak (Muvalat) ve azaları ovalamak (Dalk) Maliki mezhebinde farzdır."
+    },
+    {
+      "stepNumber": 2,
+      "title": "Yüzü ve Kolları Yıkama (Farz)",
+      "description": "Yüzün yıkanması ve dirseklerle beraber kolların yıkanması ve ovalanması farzdır."
+    },
+    {
+      "stepNumber": 3,
+      "title": "Başı Meshetmek (Farz)",
+      "description": "Islak ellerle başın tamamının meshedilmesi Maliki mezhebinde farzdır.",
+      "note": "Maliki mezhebinde başın tamamını meshetmek farzdır."
+    },
+    {
+      "stepNumber": 4,
+      "title": "Ayakları Yıkama (Farz)",
+      "description": "Ayakların topuklarla birlikte yıkanması ve ovalanması farzdır."
+    }
+  ],
+  "Hanbeli": [
+    {
+      "stepNumber": 1,
+      "title": "Niyet ve Besmele (Farz)",
+      "description": "Niyet edilir. Hatırlanması halinde besmele çekmek Hanbeli mezhebinde farzdır."
+    },
+    {
+      "stepNumber": 2,
+      "title": "Ağız ve Buruna Su Verme (Farz)",
+      "description": "Ağza ve buruna su verilmesi yüz yıkama kapsamına dahil edildiği için farzdır.",
+      "note": "Hanbeli mezhebinde ağız ve burun temizliği yüzün parçası sayılarak farz kabul edilir."
+    },
+    {
+      "stepNumber": 3,
+      "title": "Yüz, Kollar, Baş ve Ayaklar (Farz)",
+      "description": "Yüz ve kollar yıkanır, başın tamamı (kulaklar dahil) meshedilir ve ayaklar yıkanır. Tertip ve muvalat farzdır."
+    }
+  ]
+}

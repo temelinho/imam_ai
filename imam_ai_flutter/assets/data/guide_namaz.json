@@ -1,0 +1,65 @@
+{
+  "Hanefi": [
+    {
+      "stepNumber": 1,
+      "title": "İftitah Tekbiri",
+      "description": "Kıbleye yönelerek niyet edilir. Eller kulak hizasına kadar kaldırılarak 'Allâhu Ekber' denir ve namaza başlanır.",
+      "arabicText": "اللهُ أَكْبَرُ"
+    },
+    {
+      "stepNumber": 2,
+      "title": "Kıyam (Ayakta Durma)",
+      "description": "Eller göbek altında bağlanır (sağ el sol elin üzerine gelecek şekilde). Sübhaneke duası, Eûzü-Besmele, Fatiha suresi ve bir zamm-ı sure okunur.",
+      "arabicText": "سُبْحَانَكَ اللَّهُمَّ وَبِحَمْدِكَ..."
+    },
+    {
+      "stepNumber": 3,
+      "title": "Rükû",
+      "description": "'Allâhu Ekber' diyerek rükûya eğilinir. Ellerle diz kapakları tutulur, sırt düz tutulur. Üç defa 'Sübhâne Rabbiye'l-Azîm' denir.",
+      "arabicText": "سُبْحَانَ رَبِّيَ الْعَظِيمِ"
+    },
+    {
+      "stepNumber": 4,
+      "title": "Doğrulma (Kavme)",
+      "description": "Rükûdan doğrulurken 'Semiallâhu limen hamideh' denir. Tam doğrulunca 'Rabbenâ leke'l-hamd' denir.",
+      "arabicText": "سَمِعَ اللهُ لِمَنْ حَمِدَهُ"
+    },
+    {
+      "stepNumber": 5,
+      "title": "Secde",
+      "description": "'Allâhu Ekber' diyerek secdeye gidilir. Yere önce dizler, sonra eller, sonra alın ve burun konur. Üç defa 'Sübhâne Rabbiye'l-A'lâ' denir.",
+      "arabicText": "سُبْحَانَ رَبِّيَ الْأَعْلَى"
+    },
+    {
+      "stepNumber": 6,
+      "title": "Ka'de (Oturma)",
+      "description": "İki secde arasında kısa bir süre oturulur, sonra ikinci secdeye gidilir. İkinci rekatın sonunda 'Ka'de-i Ahîre' (son oturuş) yapılır. Ettehiyyâtü, Salli-Barik ve Rabbena duaları okunarak sağa ve sola selam verilir.",
+      "arabicText": "السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللهِ"
+    }
+  ],
+  "Şafi": [
+    {
+      "stepNumber": 1,
+      "title": "İftitah Tekbiri ve Niyet (Farz)",
+      "description": "Niyet kalple yapılır. Eller omuz hizasına kaldırılıp 'Allâhu Ekber' denir.",
+      "note": "Şafi mezhebinde eller kulak hizasına değil, omuz hizasına kadar kaldırılır."
+    },
+    {
+      "stepNumber": 2,
+      "title": "Kıyam ve Veccehtü",
+      "description": "Eller göğüs üzerinde (sol elin üzerinde sağ el tutularak) bağlanır. İftitah duası olarak 'Veccehtü' duası okunur. Ardından Fatiha suresi her rekatta cemaatle kılınırken de sesli veya sessizce mutlaka okunur.",
+      "arabicText": "وَجَّهْتُ وَجْهِيَ لِلَّذِي فَطَرَ..."
+    },
+    {
+      "stepNumber": 3,
+      "title": "Rükû ve İtidal (Farz)",
+      "description": "Rükûya gidilir, rükûdan doğrulurken (İtidal) eller yine omuz hizasına kadar kaldırılır (Ref'ul-Yedeyn).",
+      "note": "Şafi mezhebinde rükûya giderken ve kalkarken elleri kaldırmak (Ref'ul-Yedeyn) sünnettir."
+    },
+    {
+      "stepNumber": 4,
+      "title": "Secde ve Oturuş (Farz)",
+      "description": "Secdeler yapılır. Son oturuşta ayaklar sol tarafa çıkarılarak kalça üzerine oturulur (Teverrük oturuşu)."
+    }
+  ]
+}

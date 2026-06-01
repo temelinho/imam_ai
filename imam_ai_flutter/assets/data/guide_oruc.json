@@ -1,0 +1,37 @@
+{
+  "Hanefi": [
+    {
+      "stepNumber": 1,
+      "title": "Niyet Etmek",
+      "description": "Ramazan orucu için niyet etme vakti, gün batımından ertesi günün kaba kuşluk vaktine (istiva vaktine) kadardır. 'Yarınki Ramazan orucuna niyet ettim' şeklinde dil ile söylenmesi sünnettir."
+    },
+    {
+      "stepNumber": 2,
+      "title": "Sahura Kalkmak",
+      "description": "Sahura kalkmak sünnettir ve berekettir. İmsak vaktinin girmesiyle yeme içme kesilir."
+    },
+    {
+      "stepNumber": 3,
+      "title": "Orucu Bozan Şeyler",
+      "description": "Bilerek yiyip içmek, cinsel ilişkide bulunmak orucu bozar ve kaza ile beraber keffaret (60 gün) gerektirir. Unutarak yiyip içmek orucu bozmaz."
+    },
+    {
+      "stepNumber": 4,
+      "title": "İftar Etmek",
+      "description": "Akşam ezanının okunmasıyla birlikte oruç iftar duası okunarak su veya hurma ile açılır."
+    }
+  ],
+  "Şafi": [
+    {
+      "stepNumber": 1,
+      "title": "Niyet (Farz)",
+      "description": "Her farz oruç günü için geceden (gün batımından imsak vaktine kadar) niyet etmek farzdır. Geceden niyet edilmezse Ramazan orucu geçerli olmaz.",
+      "note": "Şafi mezhebinde farz oruçlara geceden niyetlenmek kesinlikle şarttır. Gündüz niyetlenilmez."
+    },
+    {
+      "stepNumber": 2,
+      "title": "Orucun Rükünleri",
+      "description": "İmsak vaktinden akşam gün batımına kadar orucu bozan her türlü şeyden (yeme, içme, cinsel ilişki) uzak durmak farzdır."
+    }
+  ]
+}
